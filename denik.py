@@ -23,7 +23,7 @@ except Exception as e:
 
 # 2. Formulář pro váš deník
 datum = st.date_input("Datum", datetime.today())
-radost_mne = st.text_area("Co mi dnes udělalo radost?")
+radost_mne = st.text_area("Čím jsem si dnes udělal radost?")
 radost_ostatnim = st.text_area("Komu jsem udělal radost já?")
 zlepseni = st.text_area("Co bych zítra mohl udělat o kousek lépe?")
 
