@@ -4,17 +4,17 @@ from google.oauth2.service_account import Credentials
 import json
 from datetime import datetime
 
-# Nastavení širšího rozložení, ať se lístečky vejdou vedle sebe
+# Nastavení širšího rozložení
 st.set_page_config(page_title="Můj deníček", page_icon="📌", layout="centered")
 
-# --- VIZUÁLNÍ STYLY (Design nástěnky a lístečků) ---
+# --- VIZUÁLNÍ STYLY ---
 st.markdown("""
 <style>
-/* Pozadí aplikace - jemná nástěnka */
+/* Pozadí aplikace */
 .stApp {
     background-color: #f4eee8;
 }
-/* Vzhled textových polí jako žluté lístečky (Post-it) */
+/* Vzhled textových polí (Dnešní lístečky) */
 .stTextArea textarea {
     background-color: #fdfd96;
     color: #2b2b2b;
@@ -25,13 +25,18 @@ st.markdown("""
     font-size: 16px;
     min-height: 120px;
 }
-/* Reakce lístečku při psaní */
+/* Efekt při psaní */
 .stTextArea textarea:focus {
     box-shadow: 5px 5px 15px rgba(0,0,0,0.2) !important;
     background-color: #fffbc4;
 }
-/* Změna písma u popisků (otázek) */
-.stTextArea p, .stRadio p {
+/* Vzhled starších lístečků (Historie - nelze editovat) */
+.stTextArea textarea:disabled {
+    background-color: #f9f9a5;
+    color: #4a4a4a;
+}
+/* Změna písma u popisků */
+.stTextArea p, .stRadio p, .stSelectbox p {
     font-weight: bold !important;
     color: #4a4a4a !important;
     font-size: 15px !important;
@@ -46,10 +51,9 @@ div.row-widget.stRadio > div {
 </style>
 """, unsafe_allow_html=True)
 
-st.title("Můj dnešní den 📌")
+st.title("Můj deníček 📌")
 
 # --- 1. PŘIPOJENÍ K TABULCE ---
-# Funkce cache zajistí, že se připojení naváže jen jednou a neztěžuje se telefon
 @st.cache_resource
 def init_connection():
     key_dict = json.loads(st.secrets["google_json_key"])
@@ -64,65 +68,103 @@ except Exception as e:
     st.error("Nepodařilo se připojit k tabulce. Zkontrolujte tajný klíč.")
     st.stop()
 
-# --- 2. LOGIKA UKLÁDÁNÍ A NAČÍTÁNÍ (AUTOSAVE) ---
-today_str = datetime.today().strftime("%d.%m.%Y")
+# --- 2. ROZDĚLENÍ NA ZÁLOŽKY ---
+tab1, tab2 = st.tabs(["📝 Dnešní den", "🕰️ Historie záznamů"])
 
-# Tato funkce se spustí skrytě pokaždé, když kliknete mimo textové pole
-def autosave():
-    new_row = [
-        today_str,
-        st.session_state.radost_mne,
-        st.session_state.radost_ostatnim,
-        st.session_state.vdecnost,
-        st.session_state.progress,
-        st.session_state.modlitba,
-        st.session_state.overall
-    ]
-    try:
-        # Uložení (přepsání) aktuálního řádku pro dnešek
-        sheet.update(values=[new_row], range_name=f"A{st.session_state.row_index}:G{st.session_state.row_index}")
-        st.toast("Záznam úspěšně uložen! 📌", icon="✅")
-    except Exception as e:
-        st.toast("Chyba při ukládání, zkuste to znovu.", icon="❌")
+# ==========================================
+# ZÁLOŽKA 1: DNEŠNÍ DEN (S možností psaní)
+# ==========================================
+with tab1:
+    today_str = datetime.today().strftime("%d.%m.%Y")
 
-# Zjištění, zda už máme dnešek načtený v paměti telefonu
-if "initialized_date" not in st.session_state or st.session_state.initialized_date != today_str:
-    dates = sheet.col_values(1) # Přečte všechny datumy z prvního sloupce
+    def autosave():
+        new_row = [
+            today_str,
+            st.session_state.radost_mne,
+            st.session_state.radost_ostatnim,
+            st.session_state.vdecnost,
+            st.session_state.progress,
+            st.session_state.modlitba,
+            st.session_state.overall
+        ]
+        try:
+            sheet.update(values=[new_row], range_name=f"A{st.session_state.row_index}:G{st.session_state.row_index}")
+            st.toast("Záznam úspěšně uložen! 📌", icon="✅")
+        except Exception as e:
+            st.toast("Chyba při ukládání, zkuste to znovu.", icon="❌")
+
+    if "initialized_date" not in st.session_state or st.session_state.initialized_date != today_str:
+        dates = sheet.col_values(1)
+        
+        if today_str in dates:
+            st.session_state.row_index = dates.index(today_str) + 1
+            row_data = sheet.row_values(st.session_state.row_index)
+            row_data += [""] * (7 - len(row_data))
+        else:
+            st.session_state.row_index = len(dates) + 1
+            row_data = [today_str, "", "", "", "", "", "☀️"]
+            sheet.append_row(row_data)
+        
+        st.session_state.radost_mne = row_data[1]
+        st.session_state.radost_ostatnim = row_data[2]
+        st.session_state.vdecnost = row_data[3]
+        st.session_state.progress = row_data[4]
+        st.session_state.modlitba = row_data[5]
+        st.session_state.overall = row_data[6] if row_data[6] in ["☀️", "☁️"] else "☀️"
+        st.session_state.initialized_date = today_str
+
+    st.write(f"**Lístečky pro den:** {today_str}")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.text_area("Čím jsem si dnes udělal radost?", key="radost_mne", on_change=autosave)
+        st.text_area("Co jsem dnes udělal pro ostatní?", key="radost_ostatnim", on_change=autosave)
+        st.text_area("Za co jsem dnes vděčný?", key="vdecnost", on_change=autosave)
+
+    with col2:
+        st.text_area("Jaký jsem udělal pokrok ve škole?", key="progress", on_change=autosave)
+        st.text_area("Jak jsem dnešní den prožil s Bohem?", key="modlitba", on_change=autosave)
+        st.radio("Jaký mám ze sebe dnes pocit?", ["☀️", "☁️"], horizontal=True, key="overall", on_change=autosave)
+
+
+# ==========================================
+# ZÁLOŽKA 2: HISTORIE (Pouze pro čtení)
+# ==========================================
+with tab2:
+    st.write("**Nahlédněte do svých starších záznamů**")
     
-    if today_str in dates:
-        # Záznam pro dnešek už existuje, načteme z něj rozepsaná data
-        st.session_state.row_index = dates.index(today_str) + 1
-        row_data = sheet.row_values(st.session_state.row_index)
-        row_data += [""] * (7 - len(row_data)) # Ochrana, pokud jsou na konci prázdné buňky
+    # Stáhneme všechna data z tabulky (včetně starých dnů)
+    vsechna_data = sheet.get_all_values()
+    
+    # Vytvoříme seznam dnů (vynecháme první řádek, pokud je to hlavička "Datum")
+    dostupne_dny = [radek[0] for radek in vsechna_data if len(radek) > 0 and radek[0] != "Datum"]
+    
+    # Otočíme seznam, abychom v menu viděli nejnovější dny jako první
+    dostupne_dny.reverse()
+    
+    if dostupne_dny:
+        vybrany_den = st.selectbox("Vyberte den z historie:", dostupne_dny)
+        
+        # Najdeme data pro vybraný den
+        for radek in vsechna_data:
+            if len(radek) > 0 and radek[0] == vybrany_den:
+                # Doplníme prázdné buňky, pokud by jich bylo méně než 7
+                radek += [""] * (7 - len(radek))
+                
+                st.write("---")
+                h_col1, h_col2 = st.columns(2)
+                
+                # Parametr 'disabled=True' uzamkne pole, aby se nedalo upravovat
+                with h_col1:
+                    st.text_area("Čím jsem si dnes udělal radost?", value=radek[1], disabled=True, key="h1")
+                    st.text_area("Co jsem dnes udělal pro ostatní?", value=radek[2], disabled=True, key="h2")
+                    st.text_area("Za co jsem dnes vděčný?", value=radek[3], disabled=True, key="h3")
+                
+                with h_col2:
+                    st.text_area("Jaký jsem udělal pokrok ve škole?", value=radek[4], disabled=True, key="h4")
+                    st.text_area("Jak jsem dnešní den prožil s Bohem?", value=radek[5], disabled=True, key="h5")
+                    st.text_area("Jaký mám ze sebe dnes pocit?", value=radek[6], disabled=True, key="h6")
+                
+                break
     else:
-        # Je nový den! Vytvoříme prázdný řádek
-        st.session_state.row_index = len(dates) + 1
-        row_data = [today_str, "", "", "", "", "", "☀️"]
-        sheet.append_row(row_data)
-    
-    # Uložení dat do paměti aplikace
-    st.session_state.radost_mne = row_data[1]
-    st.session_state.radost_ostatnim = row_data[2]
-    st.session_state.vdecnost = row_data[3]
-    st.session_state.progress = row_data[4]
-    st.session_state.modlitba = row_data[5]
-    st.session_state.overall = row_data[6] if row_data[6] in ["☀️", "☁️"] else "☀️"
-    
-    st.session_state.initialized_date = today_str
-
-# --- 3. VYKRESLENÍ NÁSTĚNKY ---
-st.write(f"**Lístečky pro den:** {today_str}")
-
-# Rozdělení obrazovky na dva sloupce pro efekt nástěnky
-col1, col2 = st.columns(2)
-
-# Všimněte si, že každé pole má 'key' odpovídající paměti a povel 'on_change=autosave'
-with col1:
-    st.text_area("Čím jsem si dnes udělal radost?", key="radost_mne", on_change=autosave)
-    st.text_area("Co jsem dnes udělal pro ostatní?", key="radost_ostatnim", on_change=autosave)
-    st.text_area("Za co jsem dnes vděčný?", key="vdecnost", on_change=autosave)
-
-with col2:
-    st.text_area("Jaký jsem udělal pokrok ve škole?", key="progress", on_change=autosave)
-    st.text_area("Jak jsem dnešní den prožil s Bohem?", key="modlitba", on_change=autosave)
-    st.radio("Jaký mám ze sebe dnes pocit?", ["☀️", "☁️"], horizontal=True, key="overall", on_change=autosave)
+        st.info("Zatím tu nejsou žádné záznamy.")
