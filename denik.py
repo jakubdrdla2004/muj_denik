@@ -4,7 +4,7 @@ from google.oauth2.service_account import Credentials
 import json
 from datetime import datetime
 
-st.set_page_config(page_title="Můj deník", page_icon="🌱")
+st.set_page_config(page_title="Můj deníček", page_icon="🌱")
 st.title("Na cestě za lepším já 🌱")
 
 # 1. Připojení k Google Tabulce
@@ -24,8 +24,11 @@ except Exception as e:
 # 2. Formulář pro váš deník
 datum = st.date_input("Datum", datetime.today())
 radost_mne = st.text_area("Čím jsem si dnes udělal radost?")
-radost_ostatnim = st.text_area("Komu jsem udělal radost já?")
-zlepseni = st.text_area("Co bych zítra mohl udělat o kousek lépe?")
+radost_ostatnim = st.text_area("Co jsem dnes udělal pro ostatní?")
+vdecnost = st.text_area("Za co jsem dnes vděčný?")
+progress = st.text_area("Jaký jsem dnes udělal pokrok ve škole či obecně?")
+modlitba = st.text_area("Jak jsem dnešní den prožil s Bohem?")
+overall = st.radio("Jaký mám ze sebe dnes pocit?", ["☀️", "☁️"], horizontal=True)
 
 # 3. Tlačítko pro odeslání dat
 if st.button("Uložit záznam"):
@@ -35,7 +38,7 @@ if st.button("Uložit záznam"):
         
         try:
             # Příkaz append_row přidá data na první volný řádek odspodu
-            sheet.append_row([datum_str, radost_mne, radost_ostatnim, zlepseni])
+            sheet.append_row([datum_str, radost_mne, radost_ostatnim, vdecnost, progress, modlitba, overall])
             st.success("Záznam byl úspěšně uložen do vaší tabulky! 🌟")
         except Exception as e:
             st.error(f"Při ukládání nastala chyba: {e}")
