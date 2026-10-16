@@ -46,7 +46,7 @@ div.row-widget.stRadio > div {
 </style>
 """, unsafe_allow_html=True)
 
-st.title("Moje dnešní nástěnka 📌")
+st.title("Můj dnešní den 📌")
 
 # --- 1. PŘIPOJENÍ K TABULCE ---
 # Funkce cache zajistí, že se připojení naváže jen jednou a neztěžuje se telefon
@@ -81,7 +81,7 @@ def autosave():
     try:
         # Uložení (přepsání) aktuálního řádku pro dnešek
         sheet.update(values=[new_row], range_name=f"A{st.session_state.row_index}:G{st.session_state.row_index}")
-        st.toast("Lísteček uložen na nástěnku! 📌", icon="✅")
+        st.toast("Záznam úspěšně uložen! 📌", icon="✅")
     except Exception as e:
         st.toast("Chyba při ukládání, zkuste to znovu.", icon="❌")
 
@@ -119,10 +119,10 @@ col1, col2 = st.columns(2)
 # Všimněte si, že každé pole má 'key' odpovídající paměti a povel 'on_change=autosave'
 with col1:
     st.text_area("Čím jsem si dnes udělal radost?", key="radost_mne", on_change=autosave)
+    st.text_area("Co jsem dnes udělal pro ostatní?", key="radost_ostatnim", on_change=autosave)
     st.text_area("Za co jsem dnes vděčný?", key="vdecnost", on_change=autosave)
-    st.text_area("Jak jsem dnešní den prožil s Bohem?", key="modlitba", on_change=autosave)
 
 with col2:
-    st.text_area("Co jsem dnes udělal pro ostatní?", key="radost_ostatnim", on_change=autosave)
     st.text_area("Jaký jsem udělal pokrok ve škole?", key="progress", on_change=autosave)
+    st.text_area("Jak jsem dnešní den prožil s Bohem?", key="modlitba", on_change=autosave)
     st.radio("Jaký mám ze sebe dnes pocit?", ["☀️", "☁️"], horizontal=True, key="overall", on_change=autosave)
